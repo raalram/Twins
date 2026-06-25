@@ -1,455 +1,1152 @@
-const PLAYER_CONFIG = {
-  miri: {
-    name: 'Miri',
-    texture: 'miri',
-    color: 0x38a3ff,
-    platform: 'blue',
-    controls: 'wasd',
-    bulletKey: 'F'
-  },
-  sar: {
-    name: 'Sar',
-    texture: 'sar',
-    color: 0xb369ff,
-    platform: 'pink',
-    controls: 'arrows',
-    bulletKey: 'L'
-  }
-};
+import Player, { PLAYER_CONFIG } from '../entities/Player.js';
+
+import Enemy from '../entities/Enemy.js';
+
+
 
 export default class GameScene extends Phaser.Scene {
+
   constructor() {
+
     super('GameScene');
+
   }
+
+
 
   init(data) {
+
+    // Guarda el modo elegido en el menu e iniica la partida con los jugadores y enemigos.
+
     this.mode = data?.mode || 'single';
+
     this.players = [];
+
+    this.enemyActors = [];
+
     this.sharedFragments = 0;
+
     this.finished = false;
+
   }
+
+
 
   preload() {
+
+    // Carga de recursos necesarios para la escena de juego: mapa, jugadores, enemigos, objetos y sonidos.
+
     this.load.image('fondo', 'assets/background/fondo.png');
+
     this.load.tilemapTiledJSON('level', 'assets/maps/level.json');
+
     this.load.image('rock_packed', 'assets/maps/rock_packed.png');
+
     this.load.image('blue_tile', 'assets/maps/blue_tile.png');
+
     this.load.image('pink_tile', 'assets/maps/pink_tile.png');
-    this.load.image('miri', 'assets/sprites/miri.png');
-    this.load.image('sar', 'assets/sprites/sar.png');
+
+    this.load.spritesheet('miri', 'assets/sprites/miri.png', { frameWidth: 32, frameHeight: 48 });
+
+    this.load.spritesheet('sar', 'assets/sprites/sar.png', { frameWidth: 32, frameHeight: 48 });
+
     this.load.image('fragment', 'assets/sprites/fragment.png');
+
     this.load.image('star', 'assets/sprites/star.png');
-    this.load.image('heart', 'assets/sprites/heart.png');
-    this.load.image('enemy', 'assets/sprites/enemy.png');
+
+    this.load.spritesheet('heart', 'assets/sprites/heart.png', { frameWidth: 32, frameHeight: 32 });
+
+    this.load.spritesheet('enemy', 'assets/sprites/enemy_anim.png', { frameWidth: 32, frameHeight: 32 });
+
     this.load.image('bomb', 'assets/sprites/bomb.png');
+
+    this.load.spritesheet('explosion', 'assets/sprites/explosion.png', { frameWidth: 96, frameHeight: 96 });
+
     this.load.audio('impacto', 'assets/sounds/crash.mp3');
+
     this.load.audio('enemigoMuere', 'assets/sounds/enemyDeath.wav');
+
     this.load.audio('salto', 'assets/sounds/rise.mp3');
+
   }
+
+
 
   create() {
+
+    // Inicia la escena de juego: musica, animaciones, mapa, controles, jugadores, objetos y HUD.
+
     this.sound.stopAll();
+
     this.sound.play('musica_juego', { loop: true, volume: 0.42 });
 
+
+
+    Player.createAnimations(this);
+
+    Enemy.createAnimations(this);
+
+    this.createProjectileAnimations();
+
     this.buildMap();
+
     this.createControls();
+
     this.createPlayers();
+
     this.createWorldObjects();
+
     this.createHud();
+
   }
+
+
 
   buildMap() {
+
+    // Construye el tilemap y activa colisiones en las capas de plataformas.
+
     this.map = this.make.tilemap({ key: 'level' });
+
     const rockTiles = this.map.addTilesetImage('rock_packed', 'rock_packed');
+
     const blueTiles = this.map.addTilesetImage('blue_tile', 'blue_tile');
+
     const pinkTiles = this.map.addTilesetImage('pink_tile', 'pink_tile');
 
+
+
     this.add.image(0, 0, 'fondo')
+
       .setOrigin(0)
+
       .setDisplaySize(960, 540)
+
       .setScrollFactor(0.08);
 
+
+
     this.layers = {
+
       ground: this.map.createLayer('Ground', rockTiles, 0, 0),
+
       platforms: this.map.createLayer('Platforms', rockTiles, 0, 0),
+
       blue: this.map.createLayer('BluePlatforms', blueTiles, 0, 0),
+
       pink: this.map.createLayer('PinkPlatforms', pinkTiles, 0, 0)
+
     };
+
+
 
     Object.values(this.layers).forEach(layer => layer.setCollisionByExclusion([-1]));
+
     this.physics.world.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+
     this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+
   }
+
+
 
   createControls() {
+
+    // Controles compartidos por los dos jugadores.
+
     this.cursors = this.input.keyboard.createCursorKeys();
+
     this.keys = this.input.keyboard.addKeys('A,D,W,F,L');
+
   }
+
+
 
   createPlayers() {
+
+    // Miri aparece siempre; Sar solo aparece en modos de dos jugadores.
+
     const spawns = this.getObjects('PlayerSpawns');
+
     const miri = this.addPlayer(PLAYER_CONFIG.miri, spawns[0] || { x: 380, y: 1780 });
+
     this.players.push(miri);
 
+
+
     if (this.mode !== 'single') {
+
       const sar = this.addPlayer(PLAYER_CONFIG.sar, spawns[1] || { x: 780, y: 1780 });
+
       this.players.push(sar);
+
     }
 
+
+
     this.players.forEach(player => {
+
       this.physics.add.collider(player.sprite, this.layers.ground);
+
       this.physics.add.collider(player.sprite, this.layers.platforms);
-      this.physics.add.collider(player.sprite, this.layers[player.config.platform]);
+
+
+
+      if (this.mode === 'single') {
+
+        // En un jugador se permite recorrer todo el mapa sin restricciones de color.
+
+        this.physics.add.collider(player.sprite, this.layers.blue);
+
+        this.physics.add.collider(player.sprite, this.layers.pink);
+
+      } else {
+
+        this.physics.add.collider(player.sprite, this.layers[player.config.platform]);
+
+      }
+
     });
+
+
 
     this.cameras.main.startFollow(miri.sprite, true, 0.08, 0.08);
+
   }
+
+
 
   addPlayer(config, spawn) {
-    const sprite = this.physics.add.sprite(spawn.x, spawn.y, config.texture)
-      .setScale(1.2)
-      .setCollideWorldBounds(true);
-    sprite.body.setSize(sprite.width * 0.75, sprite.height * 0.95);
 
-    return {
-      config,
-      sprite,
-      lives: 3,
-      stars: 0,
-      fragments: 0,
-      facing: 1,
-      lastShot: 0,
-      hurtUntil: 0,
-      teleporting: false
-    };
+    return new Player(this, config, spawn);
+
   }
+
+
 
   createWorldObjects() {
+
+    // Físicas para coleccionables, enemigos, bombas y disparos.
+
     this.fragments = this.physics.add.group();
+
     this.stars = this.physics.add.group();
+
     this.hearts = this.physics.add.group();
+
     this.enemies = this.physics.add.group();
+
     this.bombs = this.physics.add.group();
-    this.bullets = this.physics.add.group();
+
+    this.bullets = this.physics.add.group({ allowGravity: false });
+
+
 
     const fragmentSpawns = this.shuffle(this.getObjects('FragmentSpawns'));
+
+    this.fragmentRespawnPoints = fragmentSpawns;
+
     const heartSpawns = this.shuffle(this.getObjects('HeartSpawns'));
+
     const enemySpawns = this.shuffle(this.getObjects('EnemySpawns'));
+
     const switchSpawns = this.getObjects('SwitchSpawn');
 
+
+
+    // Se crean los objetos en el mapa de forma aleatoria: fragmentos, estrellas, corazones, enemigos y bombas.
+
     fragmentSpawns.slice(0, 3).forEach(pos => this.spawnCollectible(this.fragments, pos, 'fragment', 1.2));
+
     fragmentSpawns.slice(3, 13).forEach(pos => this.spawnCollectible(this.stars, pos, 'star', 1.6));
+
     heartSpawns.slice(0, 3).forEach(pos => this.spawnCollectible(this.hearts, pos, 'heart', 1.2));
+
     enemySpawns.slice(0, 8).forEach((pos, index) => this.spawnEnemy(pos, index));
+
     enemySpawns.slice(8, 14).forEach(pos => this.spawnBomb(pos));
 
-    this.createPortals(fragmentSpawns.slice(14, 20));
+
+
     this.createSwitches(switchSpawns);
+
     this.createFinalPortal();
+
     this.addOverlaps();
+
+    this.addBombColliders();
+
+    this.addBulletColliders();
+
   }
+
+
+
+  createProjectileAnimations() {
+
+    // Animacion de explosion de disparos y enemigos.
+
+    if (this.anims.exists('explosion-hit')) {
+
+      return;
+
+    }
+
+
+
+    this.anims.create({
+
+      key: 'explosion-hit',
+
+      frames: this.anims.generateFrameNumbers('explosion', { start: 0, end: 11 }),
+
+      frameRate: 14,
+
+      repeat: 0
+
+    });
+
+  }
+
+
 
   spawnCollectible(group, pos, texture, scale) {
-    const item = group.create(pos.x, pos.y, texture).setScale(scale);
+
+    //Coleccionables: fragmentos, estrellas y corazones. Se crean con colision circular y sin gravedad.
+
+    const item = group.create(pos.x, pos.y, texture, texture === 'heart' ? 0 : undefined).setScale(scale);
+
     item.body.allowGravity = false;
+
     item.body.setCircle(Math.max(item.width, item.height) * 0.35);
+
     return item;
+
   }
+
+
 
   spawnEnemy(pos, index) {
-    const enemy = this.enemies.create(pos.x, pos.y, 'enemy').setScale(1.15);
-    enemy.setCollideWorldBounds(true);
-    enemy.setVelocityX(index % 2 === 0 ? 70 : -70);
-    enemy.body.setSize(enemy.width * 0.85, enemy.height * 0.9);
-    this.physics.add.collider(enemy, this.layers.ground);
-    this.physics.add.collider(enemy, this.layers.platforms);
+
+    // Crea un enemigo en la posicion especificada.
+
+    const enemy = new Enemy(this, this.enemies, pos, index);
+
+    this.enemyActors.push(enemy);
+
   }
+
+
 
   spawnBomb(pos) {
+
+    // Crea una bomba en la posicion especificada con rebote y colision circular.
+
     const bomb = this.bombs.create(pos.x, pos.y, 'bomb').setScale(1.6);
-    bomb.body.allowGravity = false;
+
+    bomb.setBounce(1);
+
+    bomb.setCollideWorldBounds(true);
+
+    bomb.setVelocity(Phaser.Math.Between(-240, 240), 20);
+
     bomb.body.setCircle(9);
+
   }
 
-  createPortals(spawns) {
-    this.portals = [];
-    const portalPairs = [
-      { owner: 'miri', color: 0x38a3ff, positions: [spawns[0] || { x: 120, y: 1540 }, spawns[1] || { x: 820, y: 920 }] },
-      { owner: 'sar', color: 0xb369ff, positions: [spawns[2] || { x: 820, y: 1520 }, spawns[3] || { x: 130, y: 620 }] }
-    ];
 
-    portalPairs.forEach(pair => {
-      pair.positions.forEach((pos, index) => {
-        const zone = this.add.zone(pos.x, pos.y, 44, 72);
-        this.physics.add.existing(zone, true);
-        const graphic = this.add.ellipse(pos.x, pos.y, 34, 62, pair.color, 0.45)
-          .setStrokeStyle(3, pair.color, 0.95);
-        this.portals.push({ zone, graphic, owner: pair.owner, pairIndex: index, pair });
-      });
+
+  addBombColliders() {
+
+    // Las bombas rebotan en el mapa y se destruyen al chocar con los disparos.
+
+    Object.values(this.layers).forEach(layer => {
+
+      this.physics.add.collider(this.bombs, layer);
+
     });
+
   }
+
+
 
   createSwitches(spawns) {
+
+    // Los interruptores solo existen en cooperativo y se quedan activos al pisarlos.
+
     this.switches = [];
+
     if (this.mode === 'single' || this.mode === 'versus') {
+
       return;
+
     }
+
+
 
     [
+
       { owner: 'miri', color: 0x38a3ff, pos: spawns[1] || { x: 340, y: 80 } },
+
       { owner: 'sar', color: 0xb369ff, pos: spawns[2] || { x: 590, y: 80 } }
+
     ].forEach(item => {
+
       const zone = this.add.zone(item.pos.x, item.pos.y, 48, 28);
+
       this.physics.add.existing(zone, true);
+
       const graphic = this.add.rectangle(item.pos.x, item.pos.y, 44, 18, item.color, 0.65)
+
         .setStrokeStyle(2, 0xffffff, 0.9);
+
       this.switches.push({ ...item, zone, graphic, active: false });
+
     });
+
   }
+
+
 
   createFinalPortal() {
+
+    // Portal de salida: se ilumina cuando se cumplen las condiciones de victoria.
+
     this.finalPortal = this.add.zone(480, 72, 78, 100);
+
     this.physics.add.existing(this.finalPortal, true);
+
     this.finalPortalGraphic = this.add.ellipse(480, 72, 58, 86, 0x7fffd4, 0.38)
+
       .setStrokeStyle(4, 0xffffff, 0.85);
+
   }
+
+
 
   addOverlaps() {
+
+    // Colisiones de los jugadores con coleccionables, enemigos, bombas y portal final.
+
     this.players.forEach(player => {
+
       this.physics.add.overlap(player.sprite, this.fragments, (_, item) => this.collectFragment(player, item));
+
       this.physics.add.overlap(player.sprite, this.stars, (_, item) => this.collectStar(player, item));
+
       this.physics.add.overlap(player.sprite, this.hearts, (_, item) => this.collectHeart(player, item));
+
       this.physics.add.overlap(player.sprite, this.enemies, () => this.damagePlayer(player, 'enemigo'));
-      this.physics.add.overlap(player.sprite, this.bombs, () => this.damagePlayer(player, 'bomba'));
+
+      this.physics.add.overlap(player.sprite, this.bombs, () => this.hitBomb(player));
+
       this.physics.add.overlap(player.sprite, this.finalPortal, () => this.tryFinish(player));
-      this.portals.forEach(portal => {
-        this.physics.add.overlap(player.sprite, portal.zone, () => this.usePortal(player, portal));
-      });
+
     });
+
+
+
+    // Disparos que destruyen enemigos y se destruyen al chocar con ellos.
 
     this.physics.add.overlap(this.bullets, this.enemies, (bullet, enemy) => {
+
+      this.createExplosion(enemy.x, enemy.y);
+
       bullet.destroy();
+
       enemy.destroy();
+
       this.sound.play('enemigoMuere', { volume: 0.45 });
+
     });
 
+
+
     if (this.mode === 'versus') {
+
+      // En competitivo los disparos tambien pueden dañar al rival.
+
       this.players.forEach(target => {
+
         this.physics.add.overlap(this.bullets, target.sprite, bullet => {
+
           if (bullet.owner !== target) {
+
             bullet.destroy();
+
             this.damagePlayer(target, 'disparo');
+
             if (target.fragments > 0) {
+
               target.fragments -= 1;
+
               this.spawnCollectible(this.fragments, target.sprite, 'fragment', 1.2);
+
             }
+
           }
+
         });
+
       });
+
     }
+
   }
+
+
+
+  addBulletColliders() {
+
+    // Los disparos se destruyen si chocan con el mapa o salen del mundo.
+
+    Object.values(this.layers).forEach(layer => {
+
+      this.physics.add.collider(this.bullets, layer, bullet => {
+
+        bullet.destroy();
+
+      });
+
+    });
+
+
+
+    this.onBulletWorldBounds = body => {
+
+      const gameObject = body.gameObject;
+
+      if (gameObject?.owner && this.bullets.contains(gameObject)) {
+
+        gameObject.destroy();
+
+      }
+
+    };
+
+
+
+    const world = this.physics.world;
+    world.on('worldbounds', this.onBulletWorldBounds);
+
+    this.events.once('shutdown', () => {
+      world.off('worldbounds', this.onBulletWorldBounds);
+
+    });
+
+  }
+
+
 
   createHud() {
-    this.hud = this.add.text(16, 14, '', {
+
+    // HUD fijo a camara: modo, fragmentos, estrellas, vidas e interruptores.
+
+    const hudHeight = this.mode === 'single' ? 96 : this.mode === 'coop' ? 156 : 136;
+
+    const rowStartY = this.mode === 'coop' ? 70 : 38;
+
+
+
+    this.hudContainer = this.add.container(14, 14).setScrollFactor(0).setDepth(1000);
+
+    this.hudBackground = this.add.rectangle(0, 0, 390, hudHeight, 0x050816, 0.68)
+
+      .setOrigin(0)
+
+      .setStrokeStyle(1, 0x6aa7ff, 0.35);
+
+
+
+    this.modeText = this.add.text(14, 10, '', {
+
       fontSize: '18px',
-      fontFamily: 'Arial',
-      color: '#ffffff',
-      backgroundColor: 'rgba(0,0,0,0.45)',
-      padding: { x: 10, y: 8 }
-    }).setScrollFactor(0);
+
+      fontFamily: 'Consolas, "Courier New", monospace',
+
+      fontStyle: 'bold',
+
+      color: '#ffffff'
+
+    });
+
+
+
+    this.sharedFragmentIcon = this.add.image(18, 48, 'fragment').setDisplaySize(22, 22);
+
+    this.sharedFragmentText = this.add.text(34, 38, '', {
+
+      fontSize: '17px',
+
+      fontFamily: 'Consolas, "Courier New", monospace',
+
+      color: '#ffffff'
+
+    });
+
+
+
+    this.hudContainer.add([
+
+      this.hudBackground,
+
+      this.modeText,
+
+      this.sharedFragmentIcon,
+
+      this.sharedFragmentText
+
+    ]);
+
+
+
+    this.hudRows = this.players.map((player, index) => this.createHudRow(player, rowStartY + index * 40));
+
+
+
+    this.switchText = this.add.text(14, this.mode === 'coop' ? 134 : 112, '', {
+
+      fontSize: '15px',
+
+      fontFamily: 'Consolas, "Courier New", monospace',
+
+      color: '#dce8ff'
+
+    });
+
+    this.hudContainer.add(this.switchText);
+
   }
+
+
+
+  createHudRow(player, y) {
+
+    // Fila de HUD para cada jugador: nombre, fragmentos, estrellas y corazones.
+
+    const nameText = this.add.text(14, y, player.config.name, {
+
+      fontSize: '17px',
+
+      fontFamily: 'Consolas, "Courier New", monospace',
+
+      fontStyle: 'bold',
+
+      color: player.config.texture === 'miri' ? '#7fc8ff' : '#cf9cff'
+
+    });
+
+
+
+    const fragmentIcon = this.add.image(86, y + 10, 'fragment').setDisplaySize(20, 20);
+
+    const fragmentText = this.add.text(102, y, '', {
+
+      fontSize: '16px',
+
+      fontFamily: 'Consolas, "Courier New", monospace',
+
+      color: '#ffffff'
+
+    });
+
+
+
+    const starIcon = this.add.image(166, y + 10, 'star').setDisplaySize(22, 22);
+
+    const starText = this.add.text(182, y, '', {
+
+      fontSize: '16px',
+
+      fontFamily: 'Consolas, "Courier New", monospace',
+
+      color: '#ffffff'
+
+    });
+
+
+
+    const hearts = [];
+
+    for (let i = 0; i < 3; i += 1) {
+
+      hearts.push(this.add.image(248 + i * 28, y + 10, 'heart', 0).setDisplaySize(24, 24));
+
+    }
+
+
+
+    this.hudContainer.add([nameText, fragmentIcon, fragmentText, starIcon, starText, ...hearts]);
+
+    return { nameText, fragmentIcon, fragmentText, starText, hearts };
+
+  }
+
+
 
   update(time) {
+
+    // Bucle principal
+
     if (this.finished) {
+
       return;
+
     }
 
-    this.players.forEach(player => this.updatePlayer(player, time));
-    this.updateEnemies();
+
+
+    this.players.forEach(player => player.update(time, this.keys, this.cursors, (actor, now) => this.shoot(actor, now)));
+
+    this.enemyActors.forEach(enemy => enemy.update(this.players));
+
+    this.checkLoseConditions();
+
     this.updateSwitches();
+
     this.updateHud();
+
     this.finalPortalGraphic.setAlpha(this.canUseFinalPortal() ? 0.85 : 0.35);
+
   }
 
-  updatePlayer(player, time) {
-    const sprite = player.sprite;
-    const left = player.config.controls === 'wasd' ? this.keys.A.isDown : this.cursors.left.isDown;
-    const right = player.config.controls === 'wasd' ? this.keys.D.isDown : this.cursors.right.isDown;
-    const jump = player.config.controls === 'wasd' ? Phaser.Input.Keyboard.JustDown(this.keys.W) : Phaser.Input.Keyboard.JustDown(this.cursors.up);
-    const shoot = Phaser.Input.Keyboard.JustDown(this.keys[player.config.bulletKey]);
 
-    sprite.setVelocityX(0);
-    if (left) {
-      sprite.setVelocityX(-210);
-      sprite.setFlipX(true);
-      player.facing = -1;
-    } else if (right) {
-      sprite.setVelocityX(210);
-      sprite.setFlipX(false);
-      player.facing = 1;
+
+  checkLoseConditions() {
+
+    // Condición de derrota: si algun jugador se queda sin vidas, termina la partida.
+
+    if (this.players.some(player => player.lives <= 0)) {
+
+      this.gameOver();
+
     }
 
-    if (jump && sprite.body.blocked.down) {
-      sprite.setVelocityY(-470);
-      this.sound.play('salto', { volume: 0.25 });
-    }
-
-    if (shoot && time - player.lastShot > 420) {
-      this.shoot(player, time);
-    }
-
-    sprite.setAlpha(time < player.hurtUntil ? 0.55 : 1);
   }
 
-  updateEnemies() {
-    this.enemies.children.iterate(enemy => {
-      if (!enemy) {
-        return;
-      }
-      if (enemy.body.blocked.left) {
-        enemy.setVelocityX(70);
-      } else if (enemy.body.blocked.right) {
-        enemy.setVelocityX(-70);
-      }
-    });
-  }
+
 
   updateSwitches() {
+
+    // Acitvación de interruptores
+
     this.switches.forEach(sw => {
+
       sw.active = sw.active || this.players.some(player => {
+
         return player.config.texture === sw.owner && Phaser.Geom.Intersects.RectangleToRectangle(player.sprite.getBounds(), sw.zone.getBounds());
+
       });
+
       sw.graphic.setAlpha(sw.active ? 1 : 0.45);
+
     });
+
   }
+
+
 
   updateHud() {
+
+    // Refresca el HUD con los valores actuales de cada jugador y del modo de juego.
+
     const modeLabel = { single: 'Un jugador', coop: 'Cooperativo', versus: 'Competitivo' }[this.mode];
-    const playerLines = this.players.map(player => {
+
+    this.modeText.setText(`Modo: ${modeLabel}`);
+
+
+
+    this.sharedFragmentIcon.setVisible(this.mode === 'coop');
+
+    this.sharedFragmentText.setVisible(this.mode === 'coop');
+
+    this.sharedFragmentText.setText(`Fragmentos comunes: ${this.sharedFragments}/3`);
+
+
+
+    this.players.forEach((player, index) => {
+
+      const row = this.hudRows[index];
+
       const fragments = this.mode === 'coop' ? this.sharedFragments : player.fragments;
-      return `${player.config.name}: vidas ${player.lives} | fragmentos ${fragments}/3 | estrellas ${player.stars}`;
+
+      row.fragmentIcon.setVisible(this.mode !== 'coop');
+
+      row.fragmentText.setVisible(this.mode !== 'coop');
+
+      row.fragmentText.setText(`${fragments}/3`);
+
+      row.starText.setText(`${player.stars}`);
+
+
+
+      row.hearts.forEach((heart, heartIndex) => {
+
+        heart.setAlpha(heartIndex < Math.max(0, player.lives) ? 1 : 0.22);
+
+      });
+
     });
-    const switchLine = this.mode === 'coop'
+
+
+
+    this.switchText.setText(this.mode === 'coop'
+
       ? `Interruptores: Miri ${this.switches[0]?.active ? 'ON' : 'OFF'} | Sar ${this.switches[1]?.active ? 'ON' : 'OFF'}`
-      : '';
-    this.hud.setText([`Modo: ${modeLabel}`, ...playerLines, switchLine].filter(Boolean).join('\n'));
+
+      : '');
+
   }
+
+
 
   shoot(player, time) {
+
+    // Disparo del jugador: crea un proyectil que se mueve en la direccion que mira el personaje.
+
     player.lastShot = time;
-    const bullet = this.bullets.create(player.sprite.x + player.facing * 22, player.sprite.y - 3, 'star').setScale(1.25);
+
+    this.sound.play('impacto', { volume: 0.22 });
+
+    const bullet = this.bullets.create(player.sprite.x + player.facing * 25, player.sprite.y, 'explosion', 1)
+
+      .setScale(0.26);
+
     bullet.owner = player;
+
     bullet.body.allowGravity = false;
-    bullet.setTint(player.config.color);
-    bullet.setVelocityX(player.facing * 480);
-    this.time.delayedCall(900, () => bullet.active && bullet.destroy());
+
+    bullet.body.setSize(44, 44, true);
+
+    bullet.setCollideWorldBounds(true);
+
+    bullet.body.onWorldBounds = true;
+
+    bullet.setVelocityX(player.facing * 500);
+
+    this.time.delayedCall(1200, () => bullet.active && bullet.destroy());
+
   }
+
+
+
+  createExplosion(x, y) {
+
+    // Efecto visual de explosion al destruir un enemigo o chocar un disparo con el mapa.
+
+    const explosion = this.add.sprite(x, y, 'explosion').setScale(0.55);
+
+    explosion.play('explosion-hit');
+
+    explosion.on('animationcomplete', () => explosion.destroy());
+
+  }
+
+
 
   collectFragment(player, item) {
+
+    // Coleccion de fragmentos: se destruye el objeto y se suma al jugador o al contador compartido.
+
     item.destroy();
+
     if (this.mode === 'coop') {
+
       this.sharedFragments += 1;
+
     } else {
+
       player.fragments += 1;
+
     }
+
   }
+
+
 
   collectStar(player, item) {
+
+    // Recolección de estrellas: se destruye el objeto y se suma al jugador.
+
     item.destroy();
+
     player.stars += 1;
+
   }
+
+
 
   collectHeart(player, item) {
+
+    // Recolección de corazones: se destruye el objeto y se suma una vida al jugador, hasta un máximo de 3.
+
     if (player.lives < 3) {
+
       player.lives += 1;
+
     }
+
     item.destroy();
+
   }
+
+
+
+  hitBomb(player) {
+
+    // Bombas hacen perder estrellas y fragmentos pero no vida 
+
+    if (this.time.now < player.hurtUntil) {
+
+      return;
+
+    }
+
+
+
+    player.hurtUntil = this.time.now + 900;
+
+    player.stars = Math.max(0, player.stars - 1);
+
+    this.dropFragmentFromPlayer(player);
+
+    player.sprite.setVelocityY(-260);
+
+    this.sound.play('impacto', { volume: 0.35 });
+
+  }
+
+
+
+  dropFragmentFromPlayer(player) {
+
+    // Si el jugador tenia fragmentos, pierde uno y reaparece en el mapa.
+
+    if (this.mode === 'coop') {
+
+      if (this.sharedFragments <= 0) {
+
+        return;
+
+      }
+
+      this.sharedFragments -= 1;
+
+      this.respawnFragment();
+
+      return;
+
+    }
+
+
+
+    if (player.fragments <= 0) {
+
+      return;
+
+    }
+
+
+
+    player.fragments -= 1;
+
+    this.respawnFragment();
+
+  }
+
+
+
+  respawnFragment() {
+
+    // Respawnea el fragmento en el mapa en un punto aleatorio 
+
+    const points = this.fragmentRespawnPoints?.length ? this.fragmentRespawnPoints : this.getObjects('FragmentSpawns');
+
+    const pos = Phaser.Utils.Array.GetRandom(points);
+
+    this.spawnCollectible(this.fragments, pos, 'fragment', 1.2);
+
+  }
+
+
 
   damagePlayer(player, reason) {
+
+    // Daño jugador 
+
     if (this.time.now < player.hurtUntil) {
+
       return;
+
     }
+
     player.hurtUntil = this.time.now + 1200;
-    player.lives -= 1;
+
+    player.lives = Math.max(0, player.lives - 1);
+
     this.sound.play('impacto', { volume: 0.45 });
+
     player.sprite.setVelocityY(-330);
 
+    this.updateHud();
+
+
+
     if (player.lives <= 0) {
-      const message = this.mode === 'versus'
-        ? `${player.config.name} cae por ${reason}.`
-        : 'Las hermanas no han logrado escapar del templo dimensional.';
-      this.endGame(false, message);
+
+      this.gameOver();
+
     }
+
   }
 
-  usePortal(player, portal) {
-    if (player.teleporting || player.config.texture !== portal.owner) {
-      return;
-    }
-    const target = this.portals.find(item => item.pair === portal.pair && item.pairIndex !== portal.pairIndex);
-    if (!target) {
-      return;
-    }
-    player.teleporting = true;
-    player.sprite.setPosition(target.zone.x, target.zone.y - 12);
-    this.cameras.main.flash(120, 120, 180, 255);
-    this.time.delayedCall(650, () => {
-      player.teleporting = false;
-    });
-  }
 
-  tryFinish(player) {
-    if (!this.canUseFinalPortal()) {
-      return;
-    }
 
-    if (this.mode === 'coop') {
-      const everyoneInside = this.players.every(item => {
-        return Phaser.Geom.Intersects.RectangleToRectangle(item.sprite.getBounds(), this.finalPortal.getBounds());
-      });
-      if (everyoneInside) {
-        this.endGame(true, 'Miri y Sar restauran juntas el Cristal de los Mundos.');
-      }
-      return;
-    }
-
-    if (this.mode === 'versus' && player.fragments < 3) {
-      return;
-    }
-
-    this.endGame(true, `${player.config.name} alcanza el portal final.`);
-  }
-
-  canUseFinalPortal() {
-    if (this.mode === 'coop') {
-      return this.sharedFragments >= 3 && this.switches.every(sw => sw.active);
-    }
-    if (this.mode === 'versus') {
-      return this.players.some(player => player.fragments >= 3);
-    }
-    return this.players[0].fragments >= 3;
-  }
-
-  endGame(win, message) {
+  gameOver() {
+    // Termina la partida y envia las estadisticas finales a la escena de Game Over.
     if (this.finished) {
       return;
     }
+
     this.finished = true;
+
     const stats = this.players.map(player => ({
       name: player.config.name,
       lives: Math.max(0, player.lives),
       stars: player.stars,
       fragments: this.mode === 'coop' ? this.sharedFragments : player.fragments
     }));
-    this.scene.start(win ? 'VictoryScene' : 'DefeatScene', { message, stats });
+
+    this.physics.pause();
+    this.sound.stopAll();
+    this.players.forEach(player => {
+      player.sprite.setTint(0xff0000);
+      player.sprite.play(`${player.config.texture}-idle`, true);
+    });
+
+    this.time.addEvent({
+      delay: 1000,
+      loop: false,
+      callback: () => {
+        this.scene.start('GameOverScene', {
+          message: '¡Oh no! Has perdido. Los mundos han sido destruidos.',
+          stats
+        });
+      }
+    });
   }
+
+  tryFinish(player) {
+
+    // Comprueba la entrada al portal final segun el modo de juego.
+
+    if (!this.canUseFinalPortal()) {
+
+      return;
+
+    }
+
+
+
+    if (this.mode === 'coop') {
+
+      const everyoneInside = this.players.every(item => {
+
+        return Phaser.Geom.Intersects.RectangleToRectangle(item.sprite.getBounds(), this.finalPortal.getBounds());
+
+      });
+
+      if (everyoneInside) {
+
+        this.endGame(true, 'Miri y Sar restauran juntas el Cristal de los Mundos.');
+
+      }
+
+      return;
+
+    }
+
+
+
+    if (player.fragments < 3) {
+
+      return;
+
+    }
+
+
+
+    this.endGame(true, `${player.config.name} atraviesa el portal final.`);
+
+  }
+
+
+
+  canUseFinalPortal() {
+
+    // El portal solo se puede usar cuando se han recogido los fragmentos y activado los interruptores
+
+    if (this.mode === 'coop') {
+
+      return this.sharedFragments >= 3 && this.switches.every(sw => sw.active);
+
+    }
+
+
+
+    return this.players.some(player => player.fragments >= 3);
+
+  }
+
+
+
+  endGame(win, message) {
+
+    // Finaliza la partida y envia las estadisticas finales a la escena de Victoria o Game Over segun el resultado.
+
+    if (this.finished) {
+
+      return;
+
+    }
+
+    this.finished = true;
+
+    const stats = this.players.map(player => ({
+
+      name: player.config.name,
+
+      lives: Math.max(0, player.lives),
+
+      stars: player.stars,
+
+      fragments: this.mode === 'coop' ? this.sharedFragments : player.fragments
+
+    }));
+
+    this.scene.start(win ? 'VictoryScene' : 'GameOverScene', { message, stats });
+
+  }
+
+
 
   getObjects(layerName) {
+
+    // Obtiene los objetos de un layer especifico del tilemap, o un array vacio si no existe.
+
     return this.map.getObjectLayer(layerName)?.objects || [];
+
   }
 
+
+
   shuffle(items) {
+
+    // Mezcla arrays para generar posiciones aleatorias sin modificar el original.
+
     return [...items].sort(() => Math.random() - 0.5);
+
   }
+
 }
+

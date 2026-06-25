@@ -3,8 +3,9 @@ import ModeScene from './scenes/ModeScene.js';
 import ControlsScene from './scenes/ControlsScene.js';
 import GameScene from './scenes/GameScene.js';
 import VictoryScene from './scenes/VictoryScene.js';
-import DefeatScene from './scenes/DefeatScene.js';
+import GameOverScene from './scenes/GameOverScene.js';
 
+// Configuracion principal de Phaser: tamano del canvas, fisicas y orden de escenas.
 const config = {
   type: Phaser.AUTO,
   parent: 'game-container',
@@ -23,7 +24,8 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
-  scene: [MenuScene, ModeScene, ControlsScene, GameScene, VictoryScene, DefeatScene]
+  // El orden permite que Phaser conozca todas las pantallas del juego.
+  scene: [MenuScene, ModeScene, ControlsScene, GameScene, VictoryScene, GameOverScene]
 };
 
 new Phaser.Game(config);

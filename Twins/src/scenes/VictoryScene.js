@@ -6,6 +6,7 @@ export default class VictoryScene extends Phaser.Scene {
   }
 
   create(data) {
+    
     this.createResultScreen({
       title: 'VICTORIA',
       color: '#7fffd4',
@@ -16,6 +17,7 @@ export default class VictoryScene extends Phaser.Scene {
   }
 
   createResultScreen(result) {
+    // Pantalla de victoria con resumen de estrellas, fragmentos y vidas.
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
@@ -26,14 +28,14 @@ export default class VictoryScene extends Phaser.Scene {
     this.add.rectangle(width / 2, height / 2, width, height, result.background, 0.22);
     this.add.text(width / 2, 126, result.title, {
       fontSize: '54px',
-      fontFamily: 'Arial',
+      fontFamily: 'Consolas, "Courier New", monospace',
       fontStyle: 'bold',
       color: result.color
     }).setOrigin(0.5);
 
     this.add.text(width / 2, 194, result.message, {
       fontSize: '24px',
-      fontFamily: 'Arial',
+      fontFamily: 'Consolas, "Courier New", monospace',
       color: '#ffffff',
       align: 'center'
     }).setOrigin(0.5);
@@ -44,20 +46,21 @@ export default class VictoryScene extends Phaser.Scene {
 
     this.add.text(width / 2, 278, lines.join('\n'), {
       fontSize: '22px',
-      fontFamily: 'Arial',
+      fontFamily: 'Consolas, "Courier New", monospace',
       color: '#dce8ff',
       align: 'center',
       lineSpacing: 10
     }).setOrigin(0.5);
 
     this.createButton(width / 2 - 120, 410, 'Menu', () => this.scene.start('MenuScene'));
-    this.createButton(width / 2 + 120, 410, 'Salir', () => this.showExitText());
+    this.createButton(width / 2 + 120, 410, 'Salir', () => this.exitToMenu());
   }
 
   createButton(x, y, label, callback) {
+    // Botones para volver al menu.
     const button = this.add.text(x, y, label, {
       fontSize: '26px',
-      fontFamily: 'Arial',
+      fontFamily: 'Consolas, "Courier New", monospace',
       fontStyle: 'bold',
       color: '#ffffff',
       backgroundColor: '#3454d1',
@@ -69,12 +72,9 @@ export default class VictoryScene extends Phaser.Scene {
     button.on('pointerdown', callback);
   }
 
-  showExitText() {
+  exitToMenu() {
+    // Detiene la musica y vuelve al menu principal.
     this.sound.stopAll();
-    this.add.text(this.cameras.main.width / 2, 480, 'Gracias por jugar a Twins', {
-      fontSize: '18px',
-      fontFamily: 'Arial',
-      color: '#ffffff'
-    }).setOrigin(0.5);
+    this.scene.start('MenuScene');
   }
 }

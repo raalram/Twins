@@ -6,6 +6,7 @@ export default class ModeScene extends Phaser.Scene {
   }
 
   create() {
+    // Pantalla de seleccion de modo de juego: un jugador, dos jugadores cooperativo o dos jugadores competitivo.
     const centerX = this.cameras.main.width / 2;
     const centerY = this.cameras.main.height / 2;
 
@@ -13,14 +14,14 @@ export default class ModeScene extends Phaser.Scene {
     this.add.text(centerX, 92, 'Selecciona modo', {
       fontSize: '46px',
       color: '#f7fbff',
-      fontFamily: 'Arial',
+      fontFamily: 'Consolas, "Courier New", monospace',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
     this.add.text(centerX, 142, 'Cada modo cambia los objetivos y la forma de jugar.', {
       fontSize: '17px',
       color: '#c8d7ee',
-      fontFamily: 'Arial'
+      fontFamily: 'Consolas, "Courier New", monospace'
     }).setOrigin(0.5);
 
     const modes = [
@@ -31,7 +32,7 @@ export default class ModeScene extends Phaser.Scene {
 
     modes.forEach(([label, mode, y, color]) => {
       this.createButton(centerX, y, label, color, () => {
-        this.scene.start('ControlsScene', { mode });
+        this.scene.start('GameScene', { mode });
       });
     });
 
@@ -41,9 +42,10 @@ export default class ModeScene extends Phaser.Scene {
   }
 
   createButton(x, y, label, color, callback, fontSize = '28px', padding = { x: 28, y: 12 }) {
+    // Boton para opciones de modo y volver al menu.
     const button = this.add.text(x, y, label, {
       fontSize,
-      fontFamily: 'Arial',
+      fontFamily: 'Consolas, "Courier New", monospace',
       fontStyle: 'bold',
       color: '#ffffff',
       backgroundColor: color,

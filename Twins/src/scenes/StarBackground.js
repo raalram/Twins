@@ -1,10 +1,12 @@
 export function createStarBackground(scene) {
+  // Fondo para menus y pantallas finales.
   const width = scene.cameras.main.width;
   const height = scene.cameras.main.height;
 
   scene.add.rectangle(width / 2, height / 2, width, height, 0x071a33);
   scene.add.rectangle(width / 2, height / 2, width, height, 0x0d2b55, 0.28);
 
+  // Estrellas pequenas y grandes repartidas aleatoriamente.
   for (let i = 0; i < 95; i += 1) {
     const x = Phaser.Math.Between(0, width);
     const y = Phaser.Math.Between(0, height);
