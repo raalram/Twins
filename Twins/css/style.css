@@ -8,7 +8,7 @@ html,
 body {
   width: 100%;
   min-height: 100%;
-  background: #070b14;
+  background: #06111c;
   font-family: Arial, Helvetica, sans-serif;
   color: #f4f7fb;
 }
@@ -51,6 +51,7 @@ body {
   max-width: 100%;
   margin: 0 auto;
   background: #050816;
+  overflow: hidden;
 }
 
 canvas {

@@ -1,5 +1,9 @@
 import MenuScene from './scenes/MenuScene.js';
+import ModeScene from './scenes/ModeScene.js';
+import ControlsScene from './scenes/ControlsScene.js';
 import GameScene from './scenes/GameScene.js';
+import VictoryScene from './scenes/VictoryScene.js';
+import DefeatScene from './scenes/DefeatScene.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -12,14 +16,14 @@ const config = {
     default: 'arcade',
     arcade: {
       gravity: { y: 900 },
-      debug: true
+      debug: false
     }
   },
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
-  scene: [MenuScene, GameScene]
+  scene: [MenuScene, ModeScene, ControlsScene, GameScene, VictoryScene, DefeatScene]
 };
 
 new Phaser.Game(config);

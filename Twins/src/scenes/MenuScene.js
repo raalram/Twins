@@ -1,9 +1,14 @@
+import { createStarBackground } from './StarBackground.js';
+
 export default class MenuScene extends Phaser.Scene {
   constructor() {
     super('MenuScene');
   }
 
   preload() {
+    this.load.image('logo', './assets/sprites/Twins Logo.png');
+    this.load.image('miri', './assets/sprites/miri.png');
+    this.load.image('sar', './assets/sprites/sar.png');
     this.load.audio('musica_menu', './assets/audio/menu_music.wav');
     this.load.audio('musica_juego', './assets/audio/game_music.wav');
     this.load.audio('musica_victoria', './assets/audio/win_music.ogg');
@@ -11,33 +16,57 @@ export default class MenuScene extends Phaser.Scene {
   }
 
   create() {
-    // Detenemos cualquier música que pudiera estar sonando antes de iniciar la del menú
     this.sound.stopAll();
-    // Iniciamos la música del menú en bucle con un volumen moderado
     this.sound.play('musica_menu', { loop: true, volume: 0.5 });
 
-    // Guardamos el centro exacto de la pantalla en una variable
-    const centroX = this.cameras.main.width / 2;
+    const centerX = this.cameras.main.width / 2;
+    const centerY = this.cameras.main.height / 2;
 
-    // Título perfectamente centrado
-    this.add.text(centroX, 180, 'TWINS', {
-      fontSize: '56px',
-      color: 'hsl(317, 80%, 92%)',
+    createStarBackground(this);
+    this.add.image(centerX, 102, 'logo').setDisplaySize(280, 130);
+    this.add.image(centerX - 245, 300, 'miri').setScale(4.2).setAlpha(0.9);
+    this.add.image(centerX + 245, 300, 'sar').setScale(4.2).setAlpha(0.9);
+
+    this.add.text(centerX, 196, 'Cristal de los Mundos', {
+      fontSize: '26px',
+      color: '#f7fbff',
       fontFamily: 'Arial',
       fontStyle: 'bold'
-    }).setOrigin(0.5); // <-- Anclamos el centro del texto a centroX
+    }).setOrigin(0.5);
 
-    // Botón centrado
-    const play = this.add.text(centroX, 330, 'JUGAR', {
-      fontSize: '36px',
-      color: '#ffffff',
-      backgroundColor: '#5b0bfb',
-      padding: { x: 20, y: 10 }
-    }).setOrigin(0.5).setInteractive(); // <-- También centrado
+    this.add.text(centerX, 232, 'Miri y Sar deben reunir los fragmentos perdidos.', {
+      fontSize: '16px',
+      color: '#c8d7ee',
+      fontFamily: 'Arial'
+    }).setOrigin(0.5);
 
-    // Usamos .once para evitar cargar la IntroScene dos veces si haces doble clic
-    play.once('pointerdown', () => {
-      this.scene.start('GameScene');
+    this.createButton(centerX, 320, 'Start', '#1d75ff', () => {
+      this.scene.start('ModeScene');
     });
+
+    this.createButton(centerX, 392, 'Controls', '#7b3dff', () => {
+      this.scene.start('ControlsScene', { mode: 'single', fromMenu: true });
+    });
+
+    this.add.text(centerX, 506, 'Twins', {
+      fontSize: '15px',
+      color: '#ffffff',
+      fontFamily: 'Arial'
+    }).setOrigin(0.5).setAlpha(0.85);
+  }
+
+  createButton(x, y, label, color, callback) {
+    const button = this.add.text(x, y, label, {
+      fontSize: '30px',
+      fontFamily: 'Arial',
+      fontStyle: 'bold',
+      color: '#ffffff',
+      backgroundColor: color,
+      padding: { x: 36, y: 12 }
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    button.on('pointerover', () => button.setScale(1.06));
+    button.on('pointerout', () => button.setScale(1));
+    button.on('pointerdown', callback);
   }
 }
