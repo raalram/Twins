@@ -516,7 +516,7 @@ export default class GameScene extends Phaser.Scene {
     this.updateHud();
   }
 
-//Daño al jugador: se resta una vida y se aplica un tiempo de invulnerabilidad para evitar daño repetido. Si el jugador se queda sin vidas, se elimina de la partida.
+//Daño al jugador: en cooperativo o un jugador termina la partida; en competitivo elimina al jugador derrotado.
   damagePlayer(player, reason) {
     if (player.eliminated || this.time.now < player.hurtUntil) {
       return;
@@ -527,11 +527,15 @@ export default class GameScene extends Phaser.Scene {
     player.sprite.setVelocityY(-330);
     this.updateHud();
     if (player.lives <= 0) {
-      this.eliminatePlayer(player);
+      if (this.mode === 'versus') {
+        this.eliminatePlayer(player);
+      } else {
+        this.gameOver();
+      }
     }
   }
 
-//El jugador sin vidas desaparece, pero la partida continua si queda alguien activo.
+//En competitivo, el jugador sin vidas desaparece y la partida continua si queda alguien activo.
   eliminatePlayer(player) {
     if (player.eliminated) {
       return;
