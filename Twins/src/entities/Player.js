@@ -1,5 +1,5 @@
 export const PLAYER_CONFIG = {
-  // Datos de cada personaje: controles, color y plataformas permitidas.
+  // Configuración de los jugadores, incluyendo nombre, textura, color, plataforma, controles y tecla de disparo.
   miri: {
     name: 'Miri',
     texture: 'miri',
@@ -20,7 +20,7 @@ export const PLAYER_CONFIG = {
 
 export default class Player {
   constructor(scene, config, spawn) {
-    // Crea el sprite fisico y guarda los contadores propios del jugador.
+    // Inicializa un jugador en la escena, con la configuración especificada y en el punto de aparición dado.
     this.scene = scene;
     this.config = config;
     this.sprite = scene.physics.add.sprite(spawn.x, spawn.y, config.texture)
@@ -37,10 +37,11 @@ export default class Player {
     this.lastShot = 0;
     this.hurtUntil = 0;
     this.shootingUntil = 0;
+    this.eliminated = false;
   }
 
   static createAnimations(scene) {
-    // Cada personaje usa la misma estructura de spritesheet: izquierda, quieto y derecha.
+    // Crea las animaciones para los jugadores si aún no existen, incluyendo movimiento a la izquierda, derecha e idle.
     Object.values(PLAYER_CONFIG).forEach(config => {
       if (!scene.anims.exists(`${config.texture}-left`)) {
         scene.anims.create({
@@ -72,7 +73,11 @@ export default class Player {
   }
 
   update(time, keys, cursors, shootCallback) {
-    // Movimiento inspirado en el script de referencia: izquierda/derecha, salto y disparo.
+    // Actualiza el estado del jugador basado en la entrada del teclado, incluyendo movimiento, salto y disparo.
+    if (this.eliminated || !this.sprite.active) {
+      return;
+    }
+
     const left = this.config.controls === 'wasd' ? keys.A.isDown : cursors.left.isDown;
     const right = this.config.controls === 'wasd' ? keys.D.isDown : cursors.right.isDown;
     const jump = this.config.controls === 'wasd'

@@ -14,7 +14,7 @@ export default class ControlsScene extends Phaser.Scene {
   }
 
   create() {
-    // Obtener el ancho y alto de la cámara principal para posicionar los elementos correctamente
+    // Obtiene el ancho y alto de la cámara principal para posicionar los elementos correctamente
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
@@ -22,6 +22,20 @@ export default class ControlsScene extends Phaser.Scene {
 
     this.add.image(240, 250, 'controlsPlayer1').setDisplaySize(330, 220);
     this.add.image(720, 250, 'controlsPlayer2').setDisplaySize(330, 220);
+
+    this.add.text(240, 374, 'F: Disparo', {
+      fontSize: '22px',
+      fontFamily: 'Consolas, "Courier New", monospace',
+      fontStyle: 'bold',
+      color: '#7fc8ff'
+    }).setOrigin(0.5);
+
+    this.add.text(720, 374, 'L: Disparo', {
+      fontSize: '22px',
+      fontFamily: 'Consolas, "Courier New", monospace',
+      fontStyle: 'bold',
+      color: '#cf9cff'
+    }).setOrigin(0.5);
 
     this.add.image(240, 470, 'textPlayer1').setDisplaySize(360, 120);
     this.add.image(720, 470, 'textPlayer2').setDisplaySize(360, 120);
@@ -39,7 +53,7 @@ export default class ControlsScene extends Phaser.Scene {
       color: '#dce8ff'
     }).setOrigin(0.5).setAlpha(0.85);
 
-    // Crear un área interactiva que cubra toda la pantalla para volver al menú al hacer clic
+    // Área interactiva que ocupa toda la pantalla para volver al menú al hacer clic
     const backOption = this.add.zone(0, 0, width, height);
     backOption.setOrigin(0);
     backOption.setInteractive();

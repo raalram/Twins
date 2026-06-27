@@ -1,6 +1,6 @@
 export default class Enemy {
   constructor(scene, group, pos, index) {
-    // Enemigo tipo fantasma: no tiene gravedad y patrulla una zona horizontal.
+    // Inicializa un enemigo en la escena, dentro del grupo de enemigos, en la posición especificada y con un índice para determinar su comportamiento.
     this.scene = scene;
     this.sprite = group.create(pos.x, pos.y, 'enemy').setScale(1.15);
     this.sprite.enemyActor = this;
@@ -16,7 +16,7 @@ export default class Enemy {
   }
 
   static createAnimations(scene) {
-    // Animacion de vuelo compartida por todos los enemigos.
+    // Animacion de vuelo 
     if (scene.anims.exists('enemy-fly')) {
       return;
     }
@@ -30,7 +30,7 @@ export default class Enemy {
   }
 
   update(players) {
-    // Si un jugador esta cerca lo persigue; si no, patrulla flotando.
+    // Si un jugador esta cerca lo persigue; si no, sigue patrullando
     if (!this.sprite.active) {
       return;
     }
